@@ -1,60 +1,21 @@
-from qtpy import QtCore
-
-from pathlib import Path
-from glob import glob
-
-# from brainrender.scene import Scene
-# from neuro.structures.IO import load_structures_as_df
-# from imlib.source.source_files import get_structures_path
-#
-# from neuro.segmentation.paths import Paths
-# from neuro.generic_neuro_tools import transform_image_to_standard_space
-#
-# from neuro.visualise.napari_tools.layers import (
-#     display_channel,
-#     prepare_load_nii,
-# )
-# from neuro.visualise.napari_tools.callbacks import (
-#     display_brain_region_name,
-#     region_analysis,
-#     track_analysis,
-#     save_all,
-# )
-#
-# from neuro.segmentation.manual_segmentation.man_seg_tools import (
-#     add_existing_region_segmentation,
-#     add_existing_track_layers,
-#     add_new_track_layer,
-#     add_new_region_layer,
-#     view_in_brainrender,
-# )
-# from neuro.gui.elements import (
-#     add_button,
-#     add_checkbox,
-#     add_float_box,
-#     add_int_box,
-#     add_combobox,
-# )
 import numpy as np
 
 from qtpy.QtWidgets import (
-    QLabel,
     QFileDialog,
     QGridLayout,
-    QGroupBox,
-    QApplication,
     QWidget,
 )
 
 
 from qtpy.QtWidgets import (
-    QDoubleSpinBox,
     QPushButton,
-    QCheckBox,
     QLabel,
-    QSpinBox,
     QComboBox,
 )
+
+from skimage.measure import label
+
+import pandas as pd
 
 
 def add_combobox(layout, label, items, row, column=0):
@@ -117,6 +78,9 @@ class Widget(QWidget):
 
         self.viewer = viewer
         self.brush_size = brush_size
+
+        self.label_layer = []
+
         self.setup_layout()
 
     def setup_layout(self):
@@ -126,7 +90,9 @@ class Widget(QWidget):
         self.load_button = add_button(
             "Load image", layout, self.load_image, 0, 0, minimum_width=200,
         )
-
+        self.load_button = add_button(
+            "Analyse", layout, self.analyse, 1, 0, minimum_width=200,
+        )
         self.setLayout(layout)
 
     def load_image(self):
@@ -135,12 +101,31 @@ class Widget(QWidget):
         file, _ = QFileDialog.getOpenFileName(
             self, "Select the image you wish to load", "", options=options,
         )
+        print(f"Loading file: {file}")
         self.viewer._add_layers_with_plugins(file)
         shape = self.viewer.layers[0].shape
         labels = np.zeros((1, shape[1], shape[2]))
-        label_layer = self.viewer.add_labels(
+        self.label_layer = self.viewer.add_labels(
             labels, num_colors=2, name="Cells"
         )
-        label_layer.selected_label = 1
-        label_layer.brush_size = self.brush_size
-        label_layer.mode = "PAINT"
+        self.label_layer.selected_label = 1
+        self.label_layer.brush_size = self.brush_size
+        self.label_layer.mode = "PAINT"
+
+    def analyse(self):
+        print("Analysing")
+        label_image = label(np.squeeze(self.label_layer.data))
+
+        results = pd.DataFrame()
+        for layer in self.viewer.layers:
+            if layer._type_string == "image":
+                projection = np.array(np.max(layer.data, axis=0))
+
+                cells = []
+                for cell_number in range(0, label_image.max()):
+                    mean_intensity = np.mean(
+                        projection[label_image == cell_number]
+                    )
+                    cells.append(mean_intensity)
+
+                results[layer.name] = cells

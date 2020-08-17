@@ -1,6 +1,11 @@
 from setuptools import setup, find_namespace_packages
 
-requirements = ["napari[pyqt5]", "napari-aicsimageio"]
+requirements = [
+    "napari[pyqt5]",
+    "napari-aicsimageio",
+    "scikit-image",
+    "pandas",
+]
 
 
 setup(
