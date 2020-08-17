@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
 from skimage.measure import label
 
 import pandas as pd
+from pathlib import Path
 
 
 def add_combobox(layout, label, items, row, column=0):
@@ -98,11 +99,11 @@ class Widget(QWidget):
     def load_image(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        file, _ = QFileDialog.getOpenFileName(
+        self.file, _ = QFileDialog.getOpenFileName(
             self, "Select the image you wish to load", "", options=options,
         )
-        print(f"Loading file: {file}")
-        self.viewer._add_layers_with_plugins(file)
+        print(f"Loading file: {self.file}")
+        self.viewer._add_layers_with_plugins(self.file)
         shape = self.viewer.layers[0].shape
         labels = np.zeros((1, shape[1], shape[2]))
         self.label_layer = self.viewer.add_labels(
@@ -129,3 +130,10 @@ class Widget(QWidget):
                     cells.append(mean_intensity)
 
                 results[layer.name] = cells
+
+        filename = Path(self.file).parent / (
+            str(Path(self.file).stem) + "_quantification.csv"
+        )
+        print(f"Saving to: {filename}")
+        results.to_csv(filename)
+        print("Finished!")
