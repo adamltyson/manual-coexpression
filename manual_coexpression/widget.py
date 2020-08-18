@@ -89,10 +89,13 @@ class Widget(QWidget):
         layout = QGridLayout()
 
         self.load_button = add_button(
-            "Load image", layout, self.load_image, 0, 0, minimum_width=200,
+            "Load image", layout, self.load_image, 0, 0, minimum_width=150,
         )
         self.load_button = add_button(
-            "Analyse", layout, self.analyse, 1, 0, minimum_width=200,
+            "Add label", layout, self.add_labels, 1, 0, minimum_width=150,
+        )
+        self.load_button = add_button(
+            "Analyse", layout, self.analyse, 2, 0, minimum_width=150,
         )
         self.setLayout(layout)
 
@@ -104,10 +107,13 @@ class Widget(QWidget):
         )
         print(f"Loading file: {self.file}")
         self.viewer._add_layers_with_plugins(self.file)
-        shape = self.viewer.layers[0].shape
-        labels = np.zeros((1, shape[1], shape[2]))
+        self.shape = self.viewer.layers[0].shape
+        self.add_labels()
+
+    def add_labels(self):
+        self.labels = np.zeros((1, self.shape[1], self.shape[2]))
         self.label_layer = self.viewer.add_labels(
-            labels, num_colors=2, name="Cells"
+            self.labels, num_colors=2, name="Cells"
         )
         self.label_layer.selected_label = 1
         self.label_layer.brush_size = self.brush_size
@@ -132,7 +138,7 @@ class Widget(QWidget):
                 results[layer.name] = cells
 
         filename = Path(self.file).parent / (
-            str(Path(self.file).stem) + "_quantification.csv"
+            str(Path(self.file).stem) + "_" + self.label_layer.name + ".csv"
         )
         print(f"Saving to: {filename}")
         results.to_csv(filename)
